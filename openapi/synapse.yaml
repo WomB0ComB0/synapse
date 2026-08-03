@@ -18,8 +18,8 @@ info:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
   contact:
-    name: ResQ Software
-    url: https://github.com/resq-software/synapse
+    name: WomB0ComB0
+    url: https://github.com/WomB0ComB0/synapse
 
 servers:
   - url: http://localhost:8080
@@ -531,7 +531,7 @@ components:
       description: Trusted-header identity for development/gateway mode; ignored when JWT auth is configured.
       schema:
         type: string
-      example: alice@resq
+      example: alice@acme
     TenantId:
       name: X-Tenant-Id
       in: header
@@ -539,7 +539,7 @@ components:
       description: Owning tenant/organization for this request.
       schema:
         type: string
-      example: resq
+      example: acme
     TeamIds:
       name: X-Team-Ids
       in: header
@@ -1022,10 +1022,10 @@ components:
       properties:
         tenant_id:
           type: string
-          example: resq
+          example: acme
         principal_id:
           type: string
-          example: alice@resq
+          example: alice@acme
         query:
           type: string
           description: The natural-language (and/or keyword) query.
@@ -1089,10 +1089,10 @@ components:
       properties:
         tenant_id:
           type: string
-          example: resq
+          example: acme
         principal_id:
           type: string
-          example: alice@resq
+          example: alice@acme
         tool_id:
           type: string
           description: Identifier of the tool/connector to execute.
@@ -1262,7 +1262,7 @@ components:
       properties:
         tenant_id:
           type: string
-          example: resq
+          example: acme
         run_type:
           type: string
           description: The type/category of run.
