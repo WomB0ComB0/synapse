@@ -1,0 +1,11 @@
+[Unit]
+Description=Check immutable Synapse database backup freshness hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5min
+Persistent=true
+Unit=synapse-backup-monitor.service
+
+[Install]
+WantedBy=timers.target

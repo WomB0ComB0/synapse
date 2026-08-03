@@ -1,0 +1,33 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo.lock is committed for binaries/applications (synapse ships a bin), so it is
+# intentionally NOT ignored. Uncomment only if this ever becomes a library-only crate.
+# Cargo.lock
+
+# Environment / secrets — never commit real values.
+.env
+.env.*
+!.env.example
+
+# sqlx offline query data is committed (kept for offline CI builds). Uncomment to ignore.
+# .sqlx/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Logs, local backups, and coverage
+*.log
+/backups/
+/coverage/
+*.profraw

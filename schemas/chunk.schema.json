@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.resq-software.dev/synapse/chunk.schema.json",
+  "title": "Chunk",
+  "description": "A derived, retrievable chunk of a document. Chunks preserve parent-child relationships and provenance (ordinal, section path, character offsets) and record the embedding model + dimensions so vectors can be regenerated deterministically. Chunks are rebuildable derived artifacts, not canonical source-of-truth. Canonical shape from the Synapse design report; produced by the ingestion pipeline and consumed by hybrid retrieval.",
+  "type": "object",
+  "required": ["chunk_id", "doc_id", "tenant_id", "ordinal", "text"],
+  "properties": {
+    "chunk_id": {
+      "type": "string",
+      "description": "Stable identifier of the chunk.",
+      "examples": ["chunk_8742_07"]
+    },
+    "doc_id": {
+      "type": "string",
+      "description": "Identifier of the parent document this chunk was derived from.",
+      "examples": ["doc_8742"]
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Owning tenant/organization (inherited from the parent document; enforced via row-level security).",
+      "examples": ["acme"]
+    },
+    "ordinal": {
+      "type": "integer",
+      "description": "Zero-based position of the chunk within the parent document, used for ordering and adjacency expansion.",
+      "examples": [7]
+    },
+    "section_path": {
+      "type": "array",
+      "description": "Hierarchical section headings locating the chunk within the document structure.",
+      "items": { "type": "string" },
+      "examples": [["Close Process", "Reconciliation"]]
+    },
+    "text": {
+      "type": "string",
+      "description": "The chunk's text content.",
+      "examples": ["Reconcile outstanding journal entries before lock."]
+    },
+    "token_count": {
+      "type": "integer",
+      "description": "Number of tokens in the chunk under the ingestion tokenizer.",
+      "examples": [31]
+    },
+    "char_start": {
+      "type": "integer",
+      "description": "Inclusive character offset of the chunk start within the source document.",
+      "examples": [6112]
+    },
+    "char_end": {
+      "type": "integer",
+      "description": "Exclusive character offset of the chunk end within the source document.",
+      "examples": [6180]
+    },
+    "embedding_model": {
+      "type": "string",
+      "description": "Identifier of the embedding model used to vectorize the chunk. Stamped so vectors can be rebuilt/explained.",
+      "examples": ["text-embedding-3-small"]
+    },
+    "embedding_dimensions": {
+      "type": "integer",
+      "description": "Dimensionality of the chunk's embedding vector.",
+      "examples": [1536]
+    },
+    "vector_ref": {
+      "type": "string",
+      "description": "Reference to the chunk's dense vector in the vector index (pgvector or external store).",
+      "examples": ["vec://brain/chunk_8742_07"]
+    },
+    "sparse_terms_ref": {
+      "type": "string",
+      "description": "Reference to the chunk's sparse/lexical term representation (e.g. BM25) for hybrid retrieval.",
+      "examples": ["bm25://brain/chunk_8742_07"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Free-form provenance metadata (stored as JSONB), e.g. document version and PII flags. Additional properties are allowed.",
+      "additionalProperties": true,
+      "examples": [{ "document_version": "sha256:...", "contains_pii": false }]
+    }
+  }
+}

@@ -1,0 +1,1341 @@
+openapi: 3.1.0
+info:
+  title: Synapse API
+  version: 0.1.0
+  summary: Organizational Brain service for AI agents and team workflows.
+  description: |
+    Synapse is the governed layer that gives agents and teams permission-aware
+    retrieval, a versioned skill registry, bounded memory, a user/team/org
+    context service, a policy-guarded tool/connector (MCP) gateway, and durable
+    workflow orchestration.
+
+    Production identity is carried by a verified bearer JWT (JWKS, static RS256,
+    or HS256). Trusted X-Principal-Id/X-Tenant-Id headers remain available for
+    development or a trusted identity-aware gateway. Every governed endpoint is
+    attributable for audit.
+
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  contact:
+    name: ResQ Software
+    url: https://github.com/resq-software/synapse
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: skills
+    description: Versioned skill registry.
+  - name: documents
+    description: Document ingestion pipeline (canonical metadata + derived chunks).
+  - name: context
+    description: User/team/org context service (bounded, PII-minimized memory).
+  - name: retrieval
+    description: Permission-aware hybrid retrieval.
+  - name: tools
+    description: Policy-guarded tool/connector (MCP) gateway.
+  - name: runs
+    description: Durable workflow orchestration.
+  - name: audit
+    description: Append-only audit and observability.
+  - name: health
+    description: Liveness and readiness probes.
+
+paths:
+  /mcp:
+    post:
+      tags: [tools]
+      operationId: mcp
+      summary: MCP Streamable HTTP endpoint for coding agents.
+      description: Stateless JSON-RPC MCP initialize, ping, tools/list, and tools/call.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: JSON-RPC result or error.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '202':
+          description: Notification accepted without a response body.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /skills.register:
+    post:
+      tags: [skills]
+      operationId: skillsRegister
+      summary: Register (and version) a skill.
+      description: |
+        Registers a skill in the registry. A given `(skill_id, version)` pair is
+        immutable once registered; new behavior must be published under a new
+        version.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Skill'
+      responses:
+        '200':
+          description: Skill registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillRegisterResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /documents.ingest:
+    post:
+      tags: [documents]
+      operationId: documentsIngest
+      summary: Ingest a document.
+      description: |
+        Upserts canonical document metadata, then (later) chunks and embeds the
+        optional raw `content`. Chunks, vectors, and sparse terms are derived
+        artifacts that can be rebuilt from the canonical document.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentIngestRequest'
+      responses:
+        '200':
+          description: Document ingested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentIngestResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /documents.reembed:
+    post:
+      tags: [documents]
+      operationId: documentsReembed
+      summary: Rebuild document embeddings.
+      description: Preserves canonical text and ACLs while queuing a fresh embedding generation.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentReembedRequest'
+      responses:
+        '200':
+          description: Re-embedding completed or durably queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentReembedResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /context.upsert:
+    post:
+      tags: [context]
+      operationId: contextUpsert
+      summary: Upsert a principal context profile.
+      description: |
+        Upserts a principal's context profile (personal/team/org). Personal
+        memory is kept separate from org knowledge; PII is minimized and flagged
+        via `data_classification`.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Context'
+      responses:
+        '200':
+          description: Context upserted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextUpsertResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /retrieve:
+    post:
+      tags: [retrieval]
+      operationId: retrieve
+      summary: Permission-aware hybrid retrieval.
+      description: |
+        Runs permission-aware retrieval (hybrid vector + lexical, optional
+        rerank and graph expansion) scoped by tenant, team, and ACLs. Returns a
+        `trace_id` so callers can correlate logs.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetrieveRequest'
+      responses:
+        '200':
+          description: Retrieval results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrieveResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /tool.execute:
+    post:
+      tags: [tools]
+      operationId: toolExecute
+      summary: Execute a tool/connector call.
+      description: |
+        Executes an enabled tenant-owned tool contract through the outbound MCP gateway.
+        Synapse validates arguments and connector scopes before dispatch. Registry or
+        request policy may require durable approval before any autonomous write.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolExecuteRequest'
+      responses:
+        '200':
+          description: Tool executed (or queued for approval).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolExecuteResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /tools.register:
+    post:
+      tags: [tools]
+      operationId: toolsRegister
+      summary: Create or update a tenant tool contract.
+      description: Admin-only. Validates the input schema and increments the contract revision.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolRegisterRequest'
+      responses:
+        '200':
+          description: Registered contract.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolRegisterResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /tools.list:
+    post:
+      tags: [tools]
+      operationId: toolsList
+      summary: List tenant tool contracts.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      responses:
+        '200':
+          description: Contracts ordered by tool id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /tools.decide:
+    post:
+      tags: [tools]
+      operationId: toolsDecide
+      summary: Approve or deny a standalone pending execution.
+      description: Admin-only. Approval revalidates the current contract before connector dispatch.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolDecisionRequest'
+      responses:
+        '200':
+          description: Decision applied or terminal outcome replayed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolLifecycleResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /tools.rollback:
+    post:
+      tags: [tools]
+      operationId: toolsRollback
+      summary: Execute registered compensation for an execution.
+      description: Admin-only and idempotent; at most one compensation execution per original.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolRollbackRequest'
+      responses:
+        '200':
+          description: Compensation outcome.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolLifecycleResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /runs.start:
+    post:
+      tags: [runs]
+      operationId: runsStart
+      summary: Start a durable workflow run.
+      description: |
+        Starts a durable workflow run (sync or async). Run state is persisted so
+        it survives restarts; when `callbacks.human_approval` is set, the run
+        suspends and returns an opaque `resume_token`.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunsStartRequest'
+      responses:
+        '200':
+          description: Run started (or suspended awaiting approval).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /runs.resume:
+    post:
+      tags: [runs]
+      operationId: runsResume
+      summary: Resume a suspended run.
+      description: |
+        Resumes a suspended run using its opaque `token` (e.g. after human
+        approval), applying `resume_input` and continuing the workflow.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunsResumeRequest'
+      responses:
+        '200':
+          description: Run resumed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /audit/events:
+    get:
+      tags: [audit]
+      operationId: auditEvents
+      summary: Query the audit log.
+      description: |
+        Queries the append-only audit log, scoped to the caller's tenant. Every
+        action that changes behavior or causes a side effect is recorded here.
+      parameters:
+        - $ref: '#/components/parameters/PrincipalId'
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TeamIds'
+        - $ref: '#/components/parameters/Role'
+        - name: action
+          in: query
+          required: false
+          description: Filter events by action name.
+          schema:
+            type: string
+        - name: resource
+          in: query
+          required: false
+          description: Filter events by resource identifier.
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque pagination cursor returned by a previous response.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of events to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+      responses:
+        '200':
+          description: A page of audit events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventsResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /health:
+    get:
+      tags: [health]
+      operationId: health
+      summary: Liveness probe.
+      description: Cheap liveness check; never touches the database. No authentication.
+      responses:
+        '200':
+          description: Service is live.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /ready:
+    get:
+      tags: [health]
+      operationId: ready
+      summary: Readiness probe.
+      description: |
+        Readiness check; pings Postgres with `SELECT 1`. Returns `503` if the
+        database is unreachable so load balancers can gate traffic. No
+        authentication.
+      responses:
+        '200':
+          description: Service is ready (database reachable).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+        '503':
+          description: Service is not ready (database unreachable).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Verified JWT; required when Synapse is configured for JWT authentication.
+
+  parameters:
+    PrincipalId:
+      name: X-Principal-Id
+      in: header
+      required: false
+      description: Trusted-header identity for development/gateway mode; ignored when JWT auth is configured.
+      schema:
+        type: string
+      example: alice@resq
+    TenantId:
+      name: X-Tenant-Id
+      in: header
+      required: false
+      description: Owning tenant/organization for this request.
+      schema:
+        type: string
+      example: resq
+    TeamIds:
+      name: X-Team-Ids
+      in: header
+      required: false
+      description: Comma-separated team ids the principal is acting within.
+      schema:
+        type: string
+      example: team-ops,team-air
+    Role:
+      name: X-Role
+      in: header
+      required: false
+      description: Platform/business role of the principal, used for RBAC.
+      schema:
+        type: string
+      example: operator
+
+  responses:
+    BadRequest:
+      description: The request was malformed or failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid bearer token or trusted principal.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Authenticated but not permitted by policy.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The referenced resource could not be found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: The operation conflicts with the resource's current lifecycle state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      description: Stable error envelope returned for all failure responses.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable, machine-readable error code.
+              examples: [not_found, bad_request, unauthorized, forbidden, db_error, internal]
+            message:
+              type: string
+              description: Human-readable error message.
+
+    DataClassification:
+      type: object
+      description: Data-classification flags that drive PII handling and retention.
+      properties:
+        contains_pii:
+          type: boolean
+          description: True if the context contains personally identifiable information.
+        special_category:
+          type: boolean
+          description: True if the context contains special-category / sensitive personal data.
+
+    Acl:
+      type: object
+      description: Queryable access-control list, enforced at the storage/query layer.
+      properties:
+        users:
+          type: array
+          description: Principal ids granted access.
+          items:
+            type: string
+        groups:
+          type: array
+          description: Group/team ids granted access.
+          items:
+            type: string
+        inherit_from_source:
+          type: boolean
+          description: When true, effective permissions are mirrored from the source system.
+
+    Skill:
+      type: object
+      description: A versioned, governed capability an agent or workflow node can invoke.
+      required: [skill_id, version, name]
+      properties:
+        skill_id:
+          type: string
+          description: Stable logical identifier, unique within a tenant.
+          example: skill.summarize_incident
+        version:
+          type: string
+          description: Semantic version. Immutable per (skill_id, version).
+          example: 1.0.0
+        name:
+          type: string
+          description: Human-readable display name.
+          example: Summarize Incident
+        summary:
+          type: string
+          description: Short description used for discovery and routing.
+        owners:
+          type: array
+          description: Teams or principals responsible for the skill.
+          items:
+            type: string
+        triggers:
+          type: array
+          description: Natural-language intents/events that route to this skill.
+          items:
+            type: string
+        input_schema:
+          type: object
+          description: Nested JSON Schema (draft 2020-12) validating accepted input.
+        output_schema:
+          type: object
+          description: Nested JSON Schema (draft 2020-12) validating produced output.
+        required_tools:
+          type: array
+          description: Tool/connector ids the skill depends on.
+          items:
+            type: string
+        policy_tags:
+          type: array
+          description: Policy labels evaluated by the Policy & Access Gateway.
+          items:
+            type: string
+        examples:
+          type: array
+          description: Illustrative input/output pairs for docs and eval sets.
+          items:
+            type: object
+            properties:
+              input:
+                type: object
+              output:
+                type: object
+
+    Context:
+      type: object
+      description: A principal's user/team/org context profile (bounded, PII-minimized).
+      required: [principal_id]
+      properties:
+        principal_id:
+          type: string
+          description: Stable identifier of the principal this context describes.
+          example: user_9281
+        tenant_id:
+          type: string
+          description: Owning tenant/organization.
+          example: acme
+        team_ids:
+          type: array
+          description: Team/group memberships.
+          items:
+            type: string
+        role:
+          type: string
+          description: Platform/business role used for RBAC.
+          example: manager
+        location:
+          type: string
+          description: Coarse working location for routing / data-residency.
+          example: US
+        approval_limit_usd:
+          type: number
+          description: Max USD the principal may approve autonomously before human sign-off.
+          example: 25000
+        preferred_tools:
+          type: array
+          description: Tools/connectors the principal prefers.
+          items:
+            type: string
+        active_projects:
+          type: array
+          description: Current workspace/project scopes.
+          items:
+            type: string
+        policy_overrides:
+          type: array
+          description: Explicit policy overrides (named flags or structured rules).
+          items: {}
+        data_classification:
+          $ref: '#/components/schemas/DataClassification'
+        updated_at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp of the last update.
+          example: '2026-07-01T00:00:00Z'
+
+    Document:
+      type: object
+      description: A canonical, source-of-truth document record.
+      required: [doc_id, tenant_id]
+      properties:
+        doc_id:
+          type: string
+          description: Stable document identifier within its tenant.
+          example: doc_8742
+        tenant_id:
+          type: string
+          description: Owning tenant/organization.
+          example: acme
+        team_scope:
+          type: array
+          description: Teams the document is scoped to.
+          items:
+            type: string
+        source_system:
+          type: string
+          description: Origin system the document was ingested from.
+          example: google_drive
+        source_uri:
+          type: string
+          description: URI locating the document in its source system.
+          example: gdrive://file/abc
+        title:
+          type: string
+          description: Human-readable title.
+          example: Quarterly close checklist
+        content_type:
+          type: string
+          description: MIME type of the source content.
+          example: application/pdf
+        language:
+          type: string
+          description: Primary language (BCP 47 / ISO 639).
+          example: en
+        version:
+          type: string
+          description: Source-content version stamp (e.g. content hash).
+          example: sha256:...
+        created_at:
+          type: string
+          format: date-time
+          description: RFC 3339 creation timestamp.
+          example: '2026-06-20T14:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          description: RFC 3339 last-update timestamp.
+          example: '2026-06-28T09:12:00Z'
+        owners:
+          type: array
+          description: Owning principals or teams.
+          items:
+            type: string
+        acl:
+          $ref: '#/components/schemas/Acl'
+        metadata:
+          type: object
+          description: Free-form source/domain metadata (JSONB).
+          additionalProperties: true
+
+    Chunk:
+      type: object
+      description: A derived, retrievable chunk of a document (rebuildable artifact).
+      required: [chunk_id, doc_id, tenant_id, ordinal, text]
+      properties:
+        chunk_id:
+          type: string
+          description: Stable chunk identifier.
+          example: chunk_8742_07
+        doc_id:
+          type: string
+          description: Parent document identifier.
+          example: doc_8742
+        tenant_id:
+          type: string
+          description: Owning tenant/organization.
+          example: acme
+        ordinal:
+          type: integer
+          description: Zero-based position within the parent document.
+          example: 7
+        section_path:
+          type: array
+          description: Hierarchical section headings locating the chunk.
+          items:
+            type: string
+        text:
+          type: string
+          description: The chunk's text content.
+        token_count:
+          type: integer
+          description: Token count under the ingestion tokenizer.
+          example: 31
+        char_start:
+          type: integer
+          description: Inclusive character offset of the chunk start.
+          example: 6112
+        char_end:
+          type: integer
+          description: Exclusive character offset of the chunk end.
+          example: 6180
+        embedding_model:
+          type: string
+          description: Embedding model used to vectorize the chunk.
+          example: text-embedding-3-small
+        embedding_dimensions:
+          type: integer
+          description: Dimensionality of the embedding vector.
+          example: 1536
+        vector_ref:
+          type: string
+          description: Reference to the dense vector in the vector index.
+          example: vec://brain/chunk_8742_07
+        sparse_terms_ref:
+          type: string
+          description: Reference to the sparse/lexical term representation.
+          example: bm25://brain/chunk_8742_07
+        metadata:
+          type: object
+          description: Free-form provenance metadata (JSONB).
+          additionalProperties: true
+
+    AuditEvent:
+      type: object
+      description: An append-only audit event.
+      required: [event_id, tenant_id, action, resource, outcome, ts]
+      properties:
+        event_id:
+          type: string
+          description: Stable event identifier.
+        tenant_id:
+          type: string
+          description: Owning tenant/organization.
+        principal_id:
+          type: string
+          description: Principal that triggered the event.
+        action:
+          type: string
+          description: The action performed (e.g. tool.execute, skills.register).
+        resource:
+          type: string
+          description: The resource acted upon.
+        outcome:
+          type: string
+          description: Outcome of the action (e.g. allowed, denied, error).
+        ts:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp of the event.
+          example: '2026-07-01T00:00:00Z'
+        metadata:
+          type: object
+          description: Free-form event metadata (JSONB).
+          additionalProperties: true
+
+    SkillRegisterResponse:
+      type: object
+      description: Result of registering a skill.
+      required: [skill_id, version, status]
+      properties:
+        skill_id:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          description: Registration status.
+          example: registered
+
+    DocumentIngestRequest:
+      type: object
+      description: >-
+        A canonical Document plus an optional raw `content` string to chunk and
+        embed. All Document fields are accepted at the top level.
+      allOf:
+        - $ref: '#/components/schemas/Document'
+        - type: object
+          properties:
+            content:
+              type: string
+              description: Optional raw text content to chunk and embed.
+
+    DocumentIngestResponse:
+      type: object
+      description: Result of ingesting a document.
+      required: [doc_id, status, chunks_ingested]
+      properties:
+        doc_id:
+          type: string
+        status:
+          type: string
+          description: Completed, idempotently replayed, durably queued, or exhausted after retries.
+          enum: [ingested, replayed, queued, embedding_failed]
+          example: ingested
+        chunks_ingested:
+          type: integer
+          description: Number of chunks produced and indexed.
+          minimum: 0
+
+    DocumentReembedRequest:
+      type: object
+      required: [doc_id]
+      properties:
+        doc_id:
+          type: string
+
+    DocumentReembedResponse:
+      type: object
+      required: [doc_id, status, chunks_queued]
+      properties:
+        doc_id:
+          type: string
+        status:
+          type: string
+          enum: [reembedded, queued, embedding_failed]
+        chunks_queued:
+          type: integer
+          minimum: 0
+
+    ContextUpsertResponse:
+      type: object
+      description: Result of upserting a principal context.
+      required: [principal_id, status]
+      properties:
+        principal_id:
+          type: string
+        status:
+          type: string
+          example: upserted
+
+    RetrieveScope:
+      type: object
+      description: Team/project fences layered on top of ACLs.
+      properties:
+        team_ids:
+          type: array
+          items:
+            type: string
+        project_ids:
+          type: array
+          items:
+            type: string
+
+    RetrievalOptions:
+      type: object
+      description: Retrieval tuning options.
+      properties:
+        mode:
+          type: string
+          description: Retrieval mode.
+          enum: [hybrid, vector, lexical]
+          default: hybrid
+        top_k:
+          type: integer
+          description: Maximum number of results to return.
+          minimum: 1
+          default: 10
+        rerank:
+          type: boolean
+          description: Whether to apply a second-stage reranker.
+          default: false
+        include_graph:
+          type: boolean
+          description: Whether to include knowledge-graph expansion.
+          default: false
+
+    RetrieveRequest:
+      type: object
+      description: A permission-aware retrieval request.
+      required: [tenant_id, principal_id, query]
+      properties:
+        tenant_id:
+          type: string
+          example: resq
+        principal_id:
+          type: string
+          example: alice@resq
+        query:
+          type: string
+          description: The natural-language (and/or keyword) query.
+        scope:
+          $ref: '#/components/schemas/RetrieveScope'
+        retrieval:
+          $ref: '#/components/schemas/RetrievalOptions'
+
+    RetrievalResult:
+      type: object
+      description: A single retrieval hit.
+      required: [chunk_id, doc_id, score, text]
+      properties:
+        chunk_id:
+          type: string
+        doc_id:
+          type: string
+        score:
+          type: number
+          format: float
+          description: Relevance score for the hit.
+        text:
+          type: string
+        source_uri:
+          type: string
+          description: URI of the source document, when available.
+        metadata:
+          type: object
+          additionalProperties: true
+
+    RetrieveResponse:
+      type: object
+      description: Retrieval results with a correlation trace id.
+      required: [results, trace_id]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RetrievalResult'
+        trace_id:
+          type: string
+          description: Correlation id for logs/observability.
+
+    ToolPolicy:
+      type: object
+      description: Policy block on a tool call.
+      properties:
+        approval_mode:
+          type: string
+          description: Whether the tool call requires human approval before running.
+          enum: [none, required]
+          default: none
+        reason:
+          type: string
+          description: Human-readable justification for the call/approval.
+
+    ToolExecuteRequest:
+      type: object
+      description: A policy-guarded tool/connector execution request.
+      required: [tenant_id, principal_id, tool_id]
+      properties:
+        tenant_id:
+          type: string
+          example: resq
+        principal_id:
+          type: string
+          example: alice@resq
+        tool_id:
+          type: string
+          description: Identifier of the tool/connector to execute.
+          example: jira.create_issue
+        arguments:
+          type: object
+          description: Arguments passed to the tool (validated against its input schema).
+          additionalProperties: true
+        policy:
+          $ref: '#/components/schemas/ToolPolicy'
+
+    ToolExecuteResponse:
+      type: object
+      description: Result of a tool execution (or approval gating).
+      required: [tool_id, status]
+      properties:
+        tool_id:
+          type: string
+        execution_id:
+          type: string
+          format: uuid
+          description: Durable execution intent id, including pending approvals.
+        status:
+          type: string
+          description: Execution status (for example, executed or pending).
+          example: pending
+        output:
+          type: object
+          description: Tool output, when executed.
+          additionalProperties: true
+        requires_approval:
+          type: boolean
+          description: True if the call is gated on human approval.
+          default: false
+
+    ToolDefinition:
+      type: object
+      required: [tool_id, input_schema, required_scopes, approval_mode, enabled, revision]
+      properties:
+        tool_id:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        input_schema:
+          type: object
+          additionalProperties: true
+        required_scopes:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        approval_mode:
+          type: string
+          enum: [none, required]
+        rollback_tool_id:
+          type: [string, 'null']
+        enabled:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
+          minimum: 1
+
+    ToolRegisterRequest:
+      type: object
+      required: [tool_id]
+      properties:
+        tool_id:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          default: ''
+        input_schema:
+          type: object
+          default: { type: object }
+          additionalProperties: true
+        required_scopes:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        approval_mode:
+          type: string
+          enum: [none, required]
+          default: required
+        rollback_tool_id:
+          type: [string, 'null']
+        enabled:
+          type: boolean
+          default: false
+
+    ToolRegisterResponse:
+      type: object
+      required: [tool, status]
+      properties:
+        tool:
+          $ref: '#/components/schemas/ToolDefinition'
+        status:
+          type: string
+          const: registered
+
+    ToolListResponse:
+      type: object
+      required: [tools]
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolDefinition'
+
+    ToolDecisionRequest:
+      type: object
+      required: [execution_id, decision]
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [approve, deny]
+        reason:
+          type: [string, 'null']
+
+    ToolRollbackRequest:
+      type: object
+      required: [execution_id]
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        reason:
+          type: [string, 'null']
+
+    ToolLifecycleResponse:
+      type: object
+      required: [execution_id, tool_id, status, output]
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        tool_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, denied, executed, failed]
+        output:
+          description: Stored tool result or compensation result.
+
+    RunCallbacks:
+      type: object
+      description: Callback hooks for a durable run.
+      properties:
+        human_approval:
+          type: boolean
+          description: If true, the run suspends for human approval and returns a resume token.
+          default: false
+        webhook:
+          type: string
+          description: Optional webhook URL notified on run state transitions.
+
+    RunsStartRequest:
+      type: object
+      description: Request to start a durable workflow run.
+      required: [tenant_id, run_type]
+      properties:
+        tenant_id:
+          type: string
+          example: resq
+        run_type:
+          type: string
+          description: The type/category of run.
+          example: incident_response
+        workflow_id:
+          type: string
+          description: Identifier of the workflow definition to execute.
+          example: wf.incident.v1
+        input:
+          type: object
+          description: Initial input for the run.
+          additionalProperties: true
+        callbacks:
+          $ref: '#/components/schemas/RunCallbacks'
+
+    RunsResumeRequest:
+      type: object
+      description: Request to resume a suspended run.
+      required: [run_id, token]
+      properties:
+        run_id:
+          type: string
+          description: Identifier of the suspended run.
+        token:
+          type: string
+          description: Opaque resume token issued when the run suspended.
+        resume_input:
+          type: object
+          description: Input applied on resume (e.g. approval decision).
+          additionalProperties: true
+
+    RunResponse:
+      type: object
+      description: State of a run after start/resume.
+      required: [run_id, status]
+      properties:
+        run_id:
+          type: string
+        status:
+          type: string
+          description: Current run status (e.g. running, suspended, completed).
+        resume_token:
+          type: string
+          description: Opaque token to resume a suspended (e.g. awaiting-approval) run.
+
+    AuditEventsResponse:
+      type: object
+      description: A page of audit events.
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        next_cursor:
+          type: string
+          description: Opaque cursor for the next page, when more results exist.
+
+    HealthResponse:
+      type: object
+      description: Liveness probe response.
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ReadyResponse:
+      type: object
+      description: Readiness probe response.
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: One of `ready` (200) or `unavailable` (503).
+          example: ready

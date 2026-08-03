@@ -1,0 +1,46 @@
+# cargo-deny configuration for synapse.
+#
+# Baseline supply-chain policy:
+#   - fail on known security advisories,
+#   - restrict dependency licenses to a permissive allow-list (Apache-2.0 / MIT / BSD / ISC ...),
+#   - lock sources to the crates.io registry.
+#
+# Run locally with:  cargo deny check
+# The `security` CI workflow enforces this on push and PR.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "warn"
+# ignore = []  # Add advisory IDs here only with a written, time-boxed justification.
+
+[licenses]
+version = 2
+# Permissive licenses allowed org-wide. synapse itself is Apache-2.0.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "CC0-1.0",
+]
+confidence-threshold = 0.8
+# exceptions = []  # Per-crate license exceptions go here, each with a justification.
+
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"
+allow = []
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

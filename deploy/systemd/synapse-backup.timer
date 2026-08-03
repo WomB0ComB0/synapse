@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Synapse immutable database backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 America/New_York
+RandomizedDelaySec=20min
+Persistent=true
+Unit=synapse-backup.service
+
+[Install]
+WantedBy=timers.target

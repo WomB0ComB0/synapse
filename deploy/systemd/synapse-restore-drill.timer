@@ -1,0 +1,14 @@
+[Unit]
+Description=Run a quarterly exact-version Synapse S3 restore drill
+
+[Timer]
+OnCalendar=*-01-15 05:17:00 America/New_York
+OnCalendar=*-04-15 05:17:00 America/New_York
+OnCalendar=*-07-15 05:17:00 America/New_York
+OnCalendar=*-10-15 05:17:00 America/New_York
+RandomizedDelaySec=2h
+Persistent=true
+Unit=synapse-restore-drill.service
+
+[Install]
+WantedBy=timers.target

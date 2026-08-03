@@ -1,0 +1,22 @@
+[
+  {
+    "query": "How can an operator rotate an outbound connector credential without restarting Synapse?",
+    "expected_doc_ids": ["synapse-docs-operations"]
+  },
+  {
+    "query": "Which signed JWT claims identify the principal, tenant, teams, and role?",
+    "expected_doc_ids": ["synapse-docs-api"]
+  },
+  {
+    "query": "Why is graph augmentation deferred until retrieval evaluation proves value?",
+    "expected_doc_ids": ["synapse-docs-roadmap", "synapse-docs-architecture"]
+  },
+  {
+    "query": "What database records govern tool schemas, connector scopes, approval, and rollback?",
+    "expected_doc_ids": ["synapse-docs-governance", "synapse-docs-data-model"]
+  },
+  {
+    "query": "How should a PostgreSQL backup restore drill verify tenant isolation and vectors?",
+    "expected_doc_ids": ["synapse-docs-operations"]
+  }
+]

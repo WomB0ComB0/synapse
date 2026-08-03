@@ -1,0 +1,44 @@
+[Unit]
+Description=Record and notify for failed Synapse operation %i
+Documentation=https://github.com/WomB0ComB0/synapse
+
+[Service]
+Type=oneshot
+User=synapse
+Group=synapse
+WorkingDirectory=/opt/synapse/current
+Environment=SYNAPSE_BACKUP_EVIDENCE_ROOT=/var/lib/synapse/recovery-evidence
+EnvironmentFile=-/etc/synapse/backup-alert.env
+# To deliver webhook alerts, supply the curl config as a systemd credential; the
+# script auto-detects $CREDENTIALS_DIRECTORY/alert-curl-config. Uncomment:
+#   LoadCredential=alert-curl-config:/etc/synapse/alert-curl.config
+ExecStart=/opt/synapse/current/scripts/systemd-failure-alert.sh %i
+UMask=0077
+StateDirectory=synapse
+StateDirectoryMode=0700
+
+NoNewPrivileges=true
+RemoveIPC=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectProc=invisible
+ProcSubset=pid
+KeyringMode=private
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/synapse

@@ -1,0 +1,27 @@
+name: security
+
+on:
+  push:
+    branches: [master]
+  pull_request: {}
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  rustsec:
+    name: RustSec dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Select stable Rust
+        run: |
+          rustup update stable
+          rustup default stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit Cargo.lock
+        run: cargo audit

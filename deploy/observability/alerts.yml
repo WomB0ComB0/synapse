@@ -1,0 +1,37 @@
+groups:
+  - name: synapse
+    rules:
+      - alert: SynapseTelemetryAbsent
+        expr: absent(synapse_http_server_requests_total{service_name="synapse"})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Synapse request telemetry is absent
+          description: No Synapse request counter has been scraped for 10 minutes.
+
+      - alert: SynapseHighErrorRate
+        expr: |
+          sum(rate(synapse_http_server_requests_total{service_name="synapse",http_response_status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(synapse_http_server_requests_total{service_name="synapse"}[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Synapse HTTP 5xx rate exceeds 5 percent
+          description: More than 5 percent of Synapse requests have returned 5xx for 5 minutes.
+
+      - alert: SynapseHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="synapse"}[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Synapse p95 latency exceeds one second
+          description: Aggregate Synapse HTTP p95 latency has exceeded one second for 5 minutes.

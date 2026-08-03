@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.resq-software.dev/synapse/context.schema.json",
+  "title": "Context",
+  "description": "A principal's (user/team/org) context profile carrying only the minimum durable information needed for personalization, routing, and policy - identity, role, memberships, working context, and approval limits, NOT raw conversation logs. Personal memory is kept separate from org knowledge and PII is minimized and flagged via `data_classification`. Canonical shape from the Synapse design report; backs the Context Service and the POST /context.upsert endpoint.",
+  "type": "object",
+  "required": ["principal_id"],
+  "properties": {
+    "principal_id": {
+      "type": "string",
+      "description": "Stable identifier of the principal (user or agent) this context describes. Also carried at request time via the X-Principal-Id header.",
+      "examples": ["user_9281"]
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Owning tenant/organization. Tenant boundaries are enforced in storage and query plans (row-level security), not only in UI logic.",
+      "examples": ["acme"]
+    },
+    "team_ids": {
+      "type": "array",
+      "description": "Team/group memberships the principal belongs to; used for team-scoped retrieval and access.",
+      "items": { "type": "string" },
+      "examples": [["finance", "procurement"]]
+    },
+    "role": {
+      "type": "string",
+      "description": "Platform/business role used for RBAC decisions.",
+      "examples": ["manager"]
+    },
+    "location": {
+      "type": "string",
+      "description": "Coarse working location (e.g. country/region) for routing and data-residency policy.",
+      "examples": ["US"]
+    },
+    "approval_limit_usd": {
+      "type": "number",
+      "description": "Maximum monetary value (USD) the principal may approve autonomously before human sign-off is required.",
+      "examples": [25000]
+    },
+    "preferred_tools": {
+      "type": "array",
+      "description": "Tools/connectors the principal prefers, used to bias routing.",
+      "items": { "type": "string" },
+      "examples": [["slack", "google_drive", "erp"]]
+    },
+    "active_projects": {
+      "type": "array",
+      "description": "Current workspace/project scopes the principal is working within.",
+      "items": { "type": "string" },
+      "examples": [["vendor-onboarding-q3"]]
+    },
+    "policy_overrides": {
+      "type": "array",
+      "description": "Explicit policy overrides applied to this principal (named flags or structured rules), e.g. requiring human approval for wire changes.",
+      "items": {},
+      "examples": [["requires_human_approval_for_wire_changes"]]
+    },
+    "data_classification": {
+      "type": "object",
+      "description": "Data-classification flags that drive PII handling and retention for this context.",
+      "properties": {
+        "contains_pii": {
+          "type": "boolean",
+          "description": "True if this context contains personally identifiable information."
+        },
+        "special_category": {
+          "type": "boolean",
+          "description": "True if this context contains special-category / sensitive personal data requiring stricter safeguards."
+        }
+      }
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp of the last update to this context profile.",
+      "examples": ["2026-07-01T00:00:00Z"]
+    }
+  }
+}

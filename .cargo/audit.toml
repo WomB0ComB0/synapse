@@ -1,0 +1,6 @@
+[advisories]
+# Cargo.lock includes SQLx's optional MySQL backend for cross-target resolution, but Synapse
+# compiles SQLx with default-features=false and the PostgreSQL feature only. `cargo tree
+# --target all -i rsa` has no path, and Synapse JWT verification uses AWS-LC. The vulnerable
+# RustCrypto RSA private-key implementation is therefore absent from every Synapse binary.
+ignore = ["RUSTSEC-2023-0071"]

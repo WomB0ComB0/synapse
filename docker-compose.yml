@@ -1,0 +1,66 @@
+# Local development stack for synapse.
+#
+#   docker compose up -d db          # just Postgres (pgvector)
+#   docker compose up --build        # Postgres + the synapse service
+#
+# The `synapse` service is optional for local dev — you can also `cargo run` on the host
+# against the `db` service.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: synapse
+      POSTGRES_DB: synapse
+    ports:
+      - "5432:5432"
+    volumes:
+      - synapse_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  synapse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://synapse:synapse@db:5432/synapse
+      BIND_ADDR: 0.0.0.0:8080
+      SYNAPSE_ENV: ${SYNAPSE_ENV:-development}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-mock}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_JWT_PUBLIC_KEY: ${AUTH_JWT_PUBLIC_KEY:-}
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      MCP_ENDPOINT: ${MCP_ENDPOINT:-}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
+      MCP_AUTH_TOKEN_FILE: ${MCP_AUTH_TOKEN_FILE:-}
+      MCP_SCOPES: ${MCP_SCOPES:-}
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
+      EMBEDDING_MODEL_CONSISTENCY: ${EMBEDDING_MODEL_CONSISTENCY:-false}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
+      INGEST_IDEMPOTENCY_ENABLED: ${INGEST_IDEMPOTENCY_ENABLED:-false}
+      WORKER_ENABLED: ${WORKER_ENABLED:-false}
+      RUST_LOG: ${RUST_LOG:-synapse=info,tower_http=info,info}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  synapse_pgdata:

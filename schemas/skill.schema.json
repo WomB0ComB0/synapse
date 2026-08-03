@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.resq-software.dev/synapse/skill.schema.json",
+  "title": "Skill",
+  "description": "A versioned, governed capability that an agent or workflow node can invoke. Skills are immutable per (skill_id, version) and bundle their invocation triggers, machine-readable input/output contracts, required tools, and policy tags so agents can call them without copying prompt text. Canonical shape from the Synapse design report; drives the skill registry, its Postgres tables, and the OpenAPI surface.",
+  "type": "object",
+  "required": ["skill_id", "version", "name"],
+  "properties": {
+    "skill_id": {
+      "type": "string",
+      "description": "Stable logical identifier for the skill, unique within a tenant (e.g. \"skill.approval.draft_response\"). Combined with `version` it forms the immutable primary key.",
+      "examples": ["skill.approval.draft_response", "skill.summarize_incident"]
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this skill revision. A given (skill_id, version) pair is immutable once registered; new behavior must be published under a new version.",
+      "examples": ["1.2.0"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable display name for the skill.",
+      "examples": ["Draft Approval Response"]
+    },
+    "summary": {
+      "type": "string",
+      "description": "Short natural-language description of what the skill does, used for discovery and routing."
+    },
+    "owners": {
+      "type": "array",
+      "description": "Teams or principals responsible for the skill's definition and maintenance.",
+      "items": { "type": "string" }
+    },
+    "triggers": {
+      "type": "array",
+      "description": "Natural-language intents or events that should surface / route to this skill.",
+      "items": { "type": "string" }
+    },
+    "input_schema": {
+      "type": "object",
+      "description": "A nested JSON Schema (draft 2020-12) describing and validating the skill's accepted input arguments.",
+      "examples": [
+        {
+          "type": "object",
+          "properties": { "request_id": { "type": "string" }, "context": { "type": "string" } },
+          "required": ["request_id"]
+        }
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "description": "A nested JSON Schema (draft 2020-12) describing and validating the skill's produced output.",
+      "examples": [
+        {
+          "type": "object",
+          "properties": { "draft": { "type": "string" }, "citations": { "type": "array", "items": { "type": "string" } } },
+          "required": ["draft"]
+        }
+      ]
+    },
+    "required_tools": {
+      "type": "array",
+      "description": "Tool/connector ids (resolved via the MCP gateway) that the skill depends on to run.",
+      "items": { "type": "string" }
+    },
+    "policy_tags": {
+      "type": "array",
+      "description": "Policy labels evaluated by the Policy & Access Gateway (e.g. scopes, or `human_approval_required` before autonomous writes).",
+      "items": { "type": "string" }
+    },
+    "examples": {
+      "type": "array",
+      "description": "Illustrative input/output pairs used for documentation and evaluation sets.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "input": { "type": "object", "description": "Example input matching `input_schema`." },
+          "output": { "type": "object", "description": "Example output matching `output_schema`." }
+        }
+      }
+    }
+  }
+}

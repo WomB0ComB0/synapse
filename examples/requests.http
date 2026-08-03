@@ -1,0 +1,238 @@
+### Synapse example requests (VS Code REST Client / IntelliJ HTTP client format).
+### Principal identity is carried by X-* headers; X-Principal-Id is required.
+
+@base = http://localhost:8080
+@principal = alice@resq
+@tenant = resq
+@teams = team-ops,team-air
+@role = operator
+@admin = admin@resq
+@execution_id = replace-with-tool-execution-uuid
+
+### Liveness
+GET {{base}}/health
+
+### Readiness (pings the database)
+GET {{base}}/ready
+
+### MCP initialize (coding agents use POST /mcp)
+POST {{base}}/mcp
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+MCP-Protocol-Version: 2025-11-25
+
+{
+  "jsonrpc": "2.0",
+  "id": "init-1",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": {},
+    "clientInfo": { "name": "example-agent", "version": "1.0.0" }
+  }
+}
+
+### Register a skill
+POST {{base}}/skills.register
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+X-Role: {{role}}
+Content-Type: application/json
+
+{
+  "skill_id": "skill.summarize_incident",
+  "version": "1.0.0",
+  "name": "Summarize Incident",
+  "summary": "Summarize an incident from linked runbooks and telemetry.",
+  "owners": ["team-ops"],
+  "triggers": ["summarize incident", "incident recap"],
+  "input_schema": { "type": "object", "properties": { "incident_id": { "type": "string" } }, "required": ["incident_id"] },
+  "output_schema": { "type": "object", "properties": { "summary": { "type": "string" } } },
+  "required_tools": ["retrieve"],
+  "policy_tags": ["internal", "pii-safe"],
+  "examples": [{ "input": { "incident_id": "INC-42" }, "output": { "summary": "..." } }]
+}
+
+### Ingest a document (metadata + optional raw content to chunk/embed)
+POST {{base}}/documents.ingest
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "doc_id": "doc-runbook-drone-recovery",
+  "tenant_id": "{{tenant}}",
+  "team_scope": ["team-air"],
+  "source_system": "confluence",
+  "source_uri": "https://wiki.resq/air/drone-recovery",
+  "title": "Drone Recovery Runbook",
+  "content_type": "text/markdown",
+  "language": "en",
+  "version": "7",
+  "owners": ["team-air"],
+  "acl": { "users": [], "groups": ["team-air"], "inherit_from_source": true },
+  "metadata": { "criticality": "high" },
+  "content": "# Drone Recovery\n1. Confirm last known GPS...\n2. Dispatch recovery unit..."
+}
+
+### Rebuild embeddings for an existing document
+POST {{base}}/documents.reembed
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "doc_id": "doc-runbook-drone-recovery"
+}
+
+### Upsert a principal context profile
+POST {{base}}/context.upsert
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "principal_id": "{{principal}}",
+  "tenant_id": "{{tenant}}",
+  "team_ids": ["team-ops", "team-air"],
+  "role": "operator",
+  "location": "US-CA",
+  "approval_limit_usd": 500,
+  "preferred_tools": ["retrieve", "jira"],
+  "active_projects": ["wildfire-2026"],
+  "policy_overrides": [],
+  "data_classification": { "contains_pii": false, "special_category": false }
+}
+
+### Hybrid retrieval
+POST {{base}}/retrieve
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+X-Team-Ids: {{teams}}
+X-Role: {{role}}
+Content-Type: application/json
+
+{
+  "tenant_id": "{{tenant}}",
+  "principal_id": "{{principal}}",
+  "query": "how do we recover a downed drone after signal loss?",
+  "scope": { "team_ids": ["team-air"], "project_ids": ["wildfire-2026"] },
+  "retrieval": { "mode": "hybrid", "top_k": 8, "rerank": true, "include_graph": false }
+}
+
+### Register a compensation tool (admin principal must have DB/JWT role=admin)
+POST {{base}}/tools.register
+X-Principal-Id: {{admin}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "tool_id": "jira.delete_issue",
+  "description": "Delete an issue created by Synapse",
+  "input_schema": { "type": "object" },
+  "required_scopes": ["issues:write"],
+  "approval_mode": "none",
+  "enabled": true
+}
+
+### Register and enable the governed tool contract
+POST {{base}}/tools.register
+X-Principal-Id: {{admin}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "tool_id": "jira.create_issue",
+  "description": "Create a Jira issue",
+  "input_schema": {
+    "type": "object",
+    "required": ["project", "summary"],
+    "properties": {
+      "project": { "type": "string" },
+      "summary": { "type": "string" },
+      "priority": { "type": "string" }
+    },
+    "additionalProperties": false
+  },
+  "required_scopes": ["issues:write"],
+  "approval_mode": "required",
+  "rollback_tool_id": "jira.delete_issue",
+  "enabled": true
+}
+
+### List tenant tool contracts
+POST {{base}}/tools.list
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{}
+
+### Execute a tool (approval required for autonomous writes)
+POST {{base}}/tool.execute
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "tenant_id": "{{tenant}}",
+  "principal_id": "{{principal}}",
+  "tool_id": "jira.create_issue",
+  "arguments": { "project": "OPS", "summary": "Recover drone INC-42", "priority": "High" },
+  "policy": { "approval_mode": "required", "reason": "creates an external ticket" }
+}
+
+### Approve the pending standalone execution
+POST {{base}}/tools.decide
+X-Principal-Id: {{admin}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "execution_id": "{{execution_id}}",
+  "decision": "approve",
+  "reason": "approved in change CHG-42"
+}
+
+### Roll back an executed call through its registered compensation tool
+POST {{base}}/tools.rollback
+X-Principal-Id: {{admin}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "execution_id": "{{execution_id}}",
+  "reason": "incident resolved without a ticket"
+}
+
+### Start a durable run
+POST {{base}}/runs.start
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "tenant_id": "{{tenant}}",
+  "run_type": "incident_response",
+  "workflow_id": "wf.incident.v1",
+  "input": { "incident_id": "INC-42" },
+  "callbacks": { "human_approval": true, "webhook": "https://hooks.resq/runs" }
+}
+
+### Resume a suspended run (e.g. after human approval)
+POST {{base}}/runs.resume
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}
+Content-Type: application/json
+
+{
+  "run_id": "run-123",
+  "token": "resume-abc",
+  "resume_input": { "approved": true }
+}
+
+### Query the audit log
+GET {{base}}/audit/events
+X-Principal-Id: {{principal}}
+X-Tenant-Id: {{tenant}}

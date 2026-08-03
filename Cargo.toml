@@ -1,0 +1,70 @@
+[package]
+name = "synapse"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Synapse — an Organizational Brain service for AI agents & team workflows: permission-aware retrieval, a versioned skill registry, bounded context/memory, a policy-guarded MCP tool gateway, and durable workflow orchestration."
+repository = "https://github.com/WomB0ComB0/synapse"
+readme = "README.md"
+keywords = ["ai", "agents", "retrieval", "rag", "orchestration"]
+categories = ["web-programming"]
+
+[lib]
+name = "synapse"
+path = "src/lib.rs"
+
+[[bin]]
+name = "synapse"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["limit"] }
+tower-http = { version = "0.7", features = ["trace", "cors", "timeout"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+semver = "1"
+# Runtime validation for tenant-owned tool input contracts. Tool schemas are
+# rejected if they contain external references, so validation never performs
+# network or filesystem retrieval.
+jsonschema = { version = "0.49.1", default-features = false }
+# JWT verification for real caller authentication (HS256 secret + RS256 public key bearer tokens).
+# jsonwebtoken 10 requires one crypto provider. AWS-LC avoids the unpatched RustCrypto RSA private-key
+# timing advisory in the dependency graph; Synapse only verifies with public keys, but a clean
+# production advisory scan is preferable. `use_pem` enables static RS256 public-key parsing.
+jsonwebtoken = { version = "10", default-features = false, features = ["aws_lc_rs", "use_pem"] }
+# PostgreSQL only. Disabling SQLx defaults removes the unused `any`/MySQL backend and its
+# advisory-bearing RSA dependency from the production lockfile.
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "macros",
+    "json",
+    "uuid",
+    "chrono",
+    "migrate",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "2"
+anyhow = "1"
+pgvector = { version = "0.4.2", features = ["sqlx"] }
+# HTTP client for the real embedding provider. default-features=false so we do
+# NOT pull native-tls/openssl — the project is rustls end-to-end (sqlx uses
+# runtime-tokio-rustls), so TLS goes through rustls too.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# OpenTelemetry traces + metrics over OTLP HTTP/protobuf using the BLOCKING reqwest
+# client. The default batch processors export from dedicated threads, where an async
+# client would panic. Reqwest features are unified with the application's rustls client,
+# retaining one TLS stack and no native-tls/OpenSSL dependency.
+tracing-opentelemetry = "0.33.0"
+opentelemetry = "0.32"
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = ["trace", "metrics", "http-proto", "reqwest-blocking-client"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
