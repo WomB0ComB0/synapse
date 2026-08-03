@@ -33,7 +33,7 @@ jsonschema = { version = "0.49.1", default-features = false }
 # jsonwebtoken 10 requires one crypto provider. AWS-LC avoids the unpatched RustCrypto RSA private-key
 # timing advisory in the dependency graph; Synapse only verifies with public keys, but a clean
 # production advisory scan is preferable. `use_pem` enables static RS256 public-key parsing.
-jsonwebtoken = { version = "10", default-features = false, features = ["aws_lc_rs", "use_pem"] }
+jsonwebtoken = { version = "11", default-features = false, features = ["aws_lc_rs", "use_pem"] }
 # PostgreSQL only. Disabling SQLx defaults removes the unused `any`/MySQL backend and its
 # advisory-bearing RSA dependency from the production lockfile.
 sqlx = { version = "0.8", default-features = false, features = [
