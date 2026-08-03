@@ -2,11 +2,11 @@
 ### Principal identity is carried by X-* headers; X-Principal-Id is required.
 
 @base = http://localhost:8080
-@principal = alice@resq
-@tenant = resq
+@principal = alice@acme
+@tenant = acme
 @teams = team-ops,team-air
 @role = operator
-@admin = admin@resq
+@admin = admin@acme
 @execution_id = replace-with-tool-execution-uuid
 
 ### Liveness
@@ -65,7 +65,7 @@ Content-Type: application/json
   "tenant_id": "{{tenant}}",
   "team_scope": ["team-air"],
   "source_system": "confluence",
-  "source_uri": "https://wiki.resq/air/drone-recovery",
+  "source_uri": "https://wiki.acme/air/drone-recovery",
   "title": "Drone Recovery Runbook",
   "content_type": "text/markdown",
   "language": "en",
@@ -217,7 +217,7 @@ Content-Type: application/json
   "run_type": "incident_response",
   "workflow_id": "wf.incident.v1",
   "input": { "incident_id": "INC-42" },
-  "callbacks": { "human_approval": true, "webhook": "https://hooks.resq/runs" }
+  "callbacks": { "human_approval": true, "webhook": "https://hooks.acme/runs" }
 }
 
 ### Resume a suspended run (e.g. after human approval)
