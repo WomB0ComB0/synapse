@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.resq-software.dev/synapse/skill.schema.json",
+  "$id": "https://schemas.mikeodnis.dev/synapse/skill.schema.json",
   "title": "Skill",
   "description": "A versioned, governed capability that an agent or workflow node can invoke. Skills are immutable per (skill_id, version) and bundle their invocation triggers, machine-readable input/output contracts, required tools, and policy tags so agents can call them without copying prompt text. Canonical shape from the Synapse design report; drives the skill registry, its Postgres tables, and the OpenAPI surface.",
   "type": "object",
