@@ -70,7 +70,7 @@ for file in "${files[@]}"; do
   jq -n \
     --arg doc_id "$doc_id" \
     --arg tenant_id "$tenant" \
-    --arg source_uri "https://github.com/resq-software/synapse/blob/$commit/$file" \
+    --arg source_uri "https://github.com/WomB0ComB0/synapse/blob/$commit/$file" \
     --arg title "$title" \
     --arg version "$version" \
     --arg principal "$principal" \
