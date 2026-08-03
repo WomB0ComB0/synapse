@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.resq-software.dev/synapse/context.schema.json",
+  "$id": "https://schemas.mikeodnis.dev/synapse/context.schema.json",
   "title": "Context",
   "description": "A principal's (user/team/org) context profile carrying only the minimum durable information needed for personalization, routing, and policy - identity, role, memberships, working context, and approval limits, NOT raw conversation logs. Personal memory is kept separate from org knowledge and PII is minimized and flagged via `data_classification`. Canonical shape from the Synapse design report; backs the Context Service and the POST /context.upsert endpoint.",
   "type": "object",
