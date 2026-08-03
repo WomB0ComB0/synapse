@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.resq-software.dev/synapse/document.schema.json",
+  "$id": "https://schemas.mikeodnis.dev/synapse/document.schema.json",
   "title": "Document",
   "description": "A canonical, source-of-truth document record. It keeps source identity and access control adjacent to content metadata. The raw source object remains the immutable record; chunks, vectors, sparse terms, and graph edges are derived artifacts that can be rebuilt from it. Canonical shape from the Synapse design report; backs the document store and the POST /documents.ingest endpoint.",
   "type": "object",
