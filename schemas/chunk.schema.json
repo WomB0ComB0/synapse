@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.resq-software.dev/synapse/chunk.schema.json",
+  "$id": "https://schemas.mikeodnis.dev/synapse/chunk.schema.json",
   "title": "Chunk",
   "description": "A derived, retrievable chunk of a document. Chunks preserve parent-child relationships and provenance (ordinal, section path, character offsets) and record the embedding model + dimensions so vectors can be regenerated deterministically. Chunks are rebuildable derived artifacts, not canonical source-of-truth. Canonical shape from the Synapse design report; produced by the ingestion pipeline and consumed by hybrid retrieval.",
   "type": "object",
